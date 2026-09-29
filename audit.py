@@ -140,11 +140,11 @@ class PageParser(HTMLParser):
 # ----------------------------------------------------------------------------
 # Fetching
 # ----------------------------------------------------------------------------
-def fetch(url, method="GET"):
+def fetch(url, method="GET", timeout=TIMEOUT):
     """Fetch a URL. Returns dict with status, final_url, headers, text, elapsed, error."""
     started = time.time()
     try:
-        r = requests.request(method, url, headers=UA, timeout=TIMEOUT,
+        r = requests.request(method, url, headers=UA, timeout=timeout,
                              allow_redirects=True)
         elapsed = time.time() - started
         text = r.text if method == "GET" else ""
@@ -424,11 +424,11 @@ def check_page(url, res, parser):
 # ----------------------------------------------------------------------------
 # Site-level checks
 # ----------------------------------------------------------------------------
-def check_robots_and_sitemap(base_url):
+def check_robots_and_sitemap(base_url, timeout=TIMEOUT):
     findings = []
     info = {}
     robots_url = urljoin(base_url, "/robots.txt")
-    r = fetch(robots_url)
+    r = fetch(robots_url, timeout=timeout)
     if r["ok"] and r["status"] == 200 and r["text"].strip():
         info["robots_txt"] = True
         sitemaps = re.findall(r"(?im)^sitemap:\s*(\S+)", r["text"])
@@ -441,7 +441,7 @@ def check_robots_and_sitemap(base_url):
             "Add a simple robots.txt (allow crawling + Sitemap: line).",
             technical=f"robots_status={r['status']}"))
     sm_url = urljoin(base_url, "/sitemap.xml")
-    s = fetch(sm_url)
+    s = fetch(sm_url, timeout=timeout)
     if s["ok"] and s["status"] == 200 and "<url" in s["text"][:2000]:
         info["sitemap_xml"] = True
     else:
@@ -454,7 +454,7 @@ def check_robots_and_sitemap(base_url):
     return findings, info
 
 
-def check_broken_links(url, parser, cap=25):
+def check_broken_links(url, parser, cap=25, timeout=TIMEOUT):
     """HEAD-check unique same-host links. Returns findings + stats."""
     seen = set()
     targets = []
@@ -468,11 +468,11 @@ def check_broken_links(url, parser, cap=25):
     broken = []
     checked = 0
     for t in targets:
-        r = fetch(t, method="HEAD")
+        r = fetch(t, method="HEAD", timeout=timeout)
         checked += 1
         if not r["ok"] or (r["status"] and r["status"] >= 400):
             # HEAD sometimes rejected; confirm with GET before calling it broken
-            r2 = fetch(t, method="GET")
+            r2 = fetch(t, method="GET", timeout=timeout)
             if not r2["ok"] or (r2["status"] and r2["status"] >= 400):
                 broken.append((t, r2["status"] or r2["error"]))
     findings = []
@@ -491,7 +491,7 @@ def check_broken_links(url, parser, cap=25):
 # ----------------------------------------------------------------------------
 # Crawl + score
 # ----------------------------------------------------------------------------
-def audit_site(start_url, max_pages=6):
+def audit_site(start_url, max_pages=6, timeout=TIMEOUT, link_cap=25):
     started_all = time.time()
     if not urlparse(start_url).scheme:
         start_url = "https://" + start_url
@@ -504,7 +504,7 @@ def audit_site(start_url, max_pages=6):
         if url in seen:
             continue
         seen.add(url)
-        res = fetch(url)
+        res = fetch(url, timeout=timeout)
         if not res["ok"]:
             findings.append(F(url, "fetch", "critical", "Page could not be loaded",
                 "The site did not respond when we tried to visit it (connection failed or timed out).",
@@ -534,7 +534,7 @@ def audit_site(start_url, max_pages=6):
         findings.extend(pf)
         # broken-link check only on the homepage (cost control)
         if crawled == 0:
-            bf, bstats = check_broken_links(url, parser)
+            bf, bstats = check_broken_links(url, parser, cap=link_cap, timeout=timeout)
             findings.extend(bf)
             stats.update(bstats)
         page_stats.append(stats)
@@ -544,7 +544,7 @@ def audit_site(start_url, max_pages=6):
             if absu and same_host(absu, start_url) and absu not in seen:
                 queue.append(absu)
 
-    rf, rinfo = check_robots_and_sitemap(start_url)
+    rf, rinfo = check_robots_and_sitemap(start_url, timeout=timeout)
     findings.extend(rf)
 
     # score
