@@ -20,6 +20,18 @@ python3 audit.py https://example.com --pages 6 --out output
 
 Output lands in `output/<domain>-<timestamp>/`:
 
+## Web interface (Vercel)
+
+SitePulse also ships a web UI: paste a URL, get the report in the browser.
+
+- `index.html` — the frontend (no build step; served statically)
+- `api/audit.py` — serverless function wrapping the same engine
+
+Web audits run with speed caps so they fit a serverless window: **3 pages max, 6s fetch timeout, 10-link broken-link cap**. For deeper crawls, use the CLI — the engine is identical, only the caps differ.
+
+Deploy: import the repo in Vercel as a static + Python project (no framework preset needed). `requirements.txt` (`requests`) is installed automatically for the function.
+
+
 | File | What it is |
 |---|---|
 | `report.json` | Machine-readable findings — feed it to other tools, dashboards, CRMs |
