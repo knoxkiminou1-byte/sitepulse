@@ -5,192 +5,70 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>SitePulse — Website Health Audit</title>
 <meta name="description" content="Paste a URL. Get a plain-language health report for any website in seconds.">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@420;560&family=Montserrat:wght@600;700&display=swap" rel="stylesheet">
 <style>
-  :root{
-    --bg:#0a0a0f; --panel:#121218; --panel2:#17171f; --line:#26262f;
-    --txt:#f2f2f5; --mut:#a7a7b3; --dim:#6d6d7a;
-    --grn:#3ddc84; --amb:#ffb020; --red:#ff5d5d; --blu:#5db4ff;
-    --acc:#3ddc84;
-  }
-  *{box-sizing:border-box; margin:0; padding:0}
-  body{background:var(--bg); color:var(--txt); font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Inter,Roboto,Helvetica,Arial,sans-serif; -webkit-font-smoothing:antialiased; line-height:1.55}
-  .wrap{max-width:860px; margin:0 auto; padding:0 20px}
-  header{padding:34px 0 10px; display:flex; align-items:center; gap:12px}
-  .pulse{width:38px; height:38px; border-radius:12px; background:linear-gradient(135deg,#1c2b22,#0e1411); border:1px solid #24402f; display:flex; align-items:center; justify-content:center; font-size:20px}
-  h1{font-size:22px; letter-spacing:-.02em}
-  h1 small{display:block; font-size:12px; color:var(--dim); font-weight:500; letter-spacing:.08em; text-transform:uppercase}
-  .hero{padding:26px 0 8px}
-  .hero h2{font-size:clamp(28px,5vw,44px); letter-spacing:-.03em; line-height:1.12; margin-bottom:10px}
-  .hero h2 em{font-style:normal; color:var(--acc)}
-  .hero p{color:var(--mut); max-width:600px; font-size:16px}
-  .audit-box{margin:26px 0; background:var(--panel); border:1px solid var(--line); border-radius:16px; padding:20px}
-  .row{display:flex; gap:10px}
-  input[type=text]{flex:1; background:var(--panel2); border:1px solid var(--line); color:var(--txt); border-radius:12px; padding:14px 16px; font-size:16px; outline:none; min-width:0}
-  input[type=text]:focus{border-color:var(--acc)}
-  button{background:var(--acc); color:#06130c; border:0; border-radius:12px; padding:14px 22px; font-size:16px; font-weight:700; cursor:pointer; white-space:nowrap}
-  button:disabled{opacity:.5; cursor:wait}
-  .hint{margin-top:10px; font-size:13px; color:var(--dim)}
-  #status{display:none; margin:26px 0; background:var(--panel); border:1px solid var(--line); border-radius:16px; padding:26px; text-align:center}
-  .spin{width:34px; height:34px; border:3px solid var(--line); border-top-color:var(--acc); border-radius:50%; margin:0 auto 14px; animation:sp 1s linear infinite}
-  @keyframes sp{to{transform:rotate(360deg)}}
-  #status p{color:var(--mut); font-size:14px}
-  #err{display:none; margin:26px 0; background:#1d1215; border:1px solid #4a2028; border-radius:16px; padding:20px; color:#ffb3b3}
-  #results{display:none; margin:26px 0}
-  .score-card{background:var(--panel); border:1px solid var(--line); border-radius:16px; padding:24px; display:flex; gap:24px; align-items:center; flex-wrap:wrap}
-  .ring{position:relative; width:120px; height:120px; flex:none}
-  .ring svg{transform:rotate(-90deg)}
-  .ring .num{position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center}
-  .ring .num b{font-size:30px; letter-spacing:-.02em}
-  .ring .num span{font-size:12px; color:var(--dim)}
-  .meta h3{font-size:20px; letter-spacing:-.01em; word-break:break-all}
-  .meta .sub{color:var(--dim); font-size:13px; margin:4px 0 12px}
-  .chips{display:flex; gap:8px; flex-wrap:wrap}
-  .chip{font-size:13px; padding:6px 12px; border-radius:999px; border:1px solid var(--line); background:var(--panel2); color:var(--mut)}
-  .chip b{color:var(--txt)}
-  .chip.c{border-color:#4a2028; color:#ff9d9d} .chip.c b{color:#ff8080}
-  .chip.w{border-color:#4d3a12; color:#ffd08a} .chip.w b{color:var(--amb)}
-  .group{margin-top:22px}
-  .group>h4{font-size:13px; text-transform:uppercase; letter-spacing:.1em; color:var(--dim); margin-bottom:10px}
-  .find{background:var(--panel); border:1px solid var(--line); border-radius:14px; margin-bottom:10px; overflow:hidden}
-  .find summary{list-style:none; cursor:pointer; padding:16px 18px; display:flex; gap:12px; align-items:flex-start}
-  .find summary::-webkit-details-marker{display:none}
-  .badge{flex:none; font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.06em; padding:4px 10px; border-radius:999px; margin-top:2px}
-  .b-crit{background:#2b1215; color:#ff8080; border:1px solid #5a242b}
-  .b-warn{background:#2b2111; color:#ffcf7d; border:1px solid #5c451a}
-  .b-info{background:#101a26; color:#8fc7ff; border:1px solid #23405c}
-  .find summary .t{font-weight:600; font-size:15px}
-  .find summary .p{font-size:12px; color:var(--dim); word-break:break-all; margin-top:2px}
-  .find .body{padding:0 18px 18px 18px; border-top:1px solid var(--line); margin-top:2px; padding-top:14px}
-  .find .body dl{display:grid; gap:10px}
-  .find .body dt{font-size:11px; text-transform:uppercase; letter-spacing:.08em; color:var(--dim)}
-  .find .body dd{font-size:14px; color:var(--txt)}
-  .notes{margin-top:22px; background:var(--panel); border:1px dashed var(--line); border-radius:14px; padding:18px; font-size:13px; color:var(--mut)}
-  .notes li{margin-left:18px; margin-bottom:4px}
-  footer{padding:30px 0 46px; color:var(--dim); font-size:13px; text-align:center}
-  footer a{color:var(--acc); text-decoration:none}
+  :root{ --bg:#07152D; --panel:#10213f; --panel2:#0c1b33; --line:#243656; --txt:#fff; --mut:#B6C1D2; --dim:#8ea0b8; --grn:#8fd6a4; --amb:#E4AC44; --red:#ff8d8d; --acc:#E4AC44; }
+  *{box-sizing:border-box; margin:0; padding:0} body{background:radial-gradient(900px 420px at 0 -10%, #16315c, transparent), var(--bg); color:var(--txt); font-family:Inter, sans-serif; line-height:1.55}
+  .wrap{max-width:880px; margin:0 auto; padding:0 20px} header{padding:32px 0 8px; display:flex; align-items:center; gap:12px}
+  .pulse{width:42px; height:42px; border-radius:14px; background:#142844; border:1px solid var(--acc); display:flex; align-items:center; justify-content:center; color:var(--acc); font-weight:700}
+  h1{font-family:Montserrat,sans-serif; font-size:22px} h1 small{display:block; font-size:12px; color:var(--dim); font-weight:500; letter-spacing:.08em; text-transform:uppercase}
+  .hero{padding:22px 0 8px} .hero h2{font-family:Montserrat,sans-serif; font-size:clamp(28px,5vw,44px); letter-spacing:-.03em; line-height:1.12; margin-bottom:10px} .hero h2 em{font-style:normal; color:var(--acc)} .hero p{color:var(--mut); max-width:620px}
+  .audit-box{margin:26px 0; background:var(--panel); border:1px solid var(--line); border-radius:18px; padding:20px}
+  .row{display:flex; gap:10px} input[type=text]{flex:1; background:var(--panel2); border:1px solid var(--line); color:var(--txt); border-radius:12px; padding:14px 16px; font-size:16px; outline:none; min-width:0} input:focus{border-color:var(--acc)}
+  button{background:var(--acc); color:#1b1404; border:0; border-radius:12px; padding:14px 22px; font-size:16px; font-weight:700; cursor:pointer} button.ghost{background:transparent; color:var(--acc); border:1px solid var(--acc)} button:disabled{opacity:.5; cursor:wait}
+  .hint{margin-top:10px; font-size:13px; color:var(--dim)} #status{display:none; margin:26px 0; background:var(--panel); border:1px solid var(--line); border-radius:16px; padding:26px; text-align:center}
+  .spin{width:34px; height:34px; border:3px solid var(--line); border-top-color:var(--acc); border-radius:50%; margin:0 auto 14px; animation:sp 1s linear infinite} @keyframes sp{to{transform:rotate(360deg)}}
+  #err{display:none; margin:26px 0; background:#2a1620; border:1px solid #6a3140; border-radius:16px; padding:20px; color:#ffd0d0} #results{display:none; margin:26px 0}
+  .score-card{background:var(--panel); border:1px solid var(--line); border-radius:18px; padding:24px; display:flex; gap:24px; align-items:center; flex-wrap:wrap}
+  .ring{position:relative; width:120px; height:120px} .ring svg{transform:rotate(-90deg)} .ring .num{position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center} .ring .num b{font-size:30px}
+  .meta h3{font-size:20px; word-break:break-all} .meta .sub{color:var(--dim); font-size:13px; margin:4px 0 12px} .chips{display:flex; gap:8px; flex-wrap:wrap} .chip{font-size:13px; padding:6px 12px; border-radius:999px; border:1px solid var(--line); background:var(--panel2); color:var(--mut)} .chip b{color:var(--txt)}
+  .actions{display:flex; gap:8px; margin-top:12px; flex-wrap:wrap} .group{margin-top:22px} .group>h4{font-size:13px; text-transform:uppercase; letter-spacing:.1em; color:var(--dim); margin-bottom:10px}
+  .find{background:var(--panel); border:1px solid var(--line); border-radius:14px; margin-bottom:10px; overflow:hidden} .find summary{list-style:none; cursor:pointer; padding:16px 18px; display:flex; gap:12px} .find summary::-webkit-details-marker{display:none}
+  .badge{font-size:11px; font-weight:700; text-transform:uppercase; padding:4px 10px; border-radius:999px} .b-crit{background:#3a1820; color:#ffb4b4} .b-warn{background:#3a2d14; color:#f0d59a} .b-info{background:#142844; color:#b7d4ff}
+  .find .body{padding:14px 18px 18px; border-top:1px solid var(--line)} .find .body dt{font-size:11px; text-transform:uppercase; color:var(--dim)} .find .body dd{margin-bottom:8px} .notes{margin-top:22px; border:1px dashed var(--line); border-radius:14px; padding:18px; color:var(--mut)} footer{padding:30px 0 46px; color:var(--dim); text-align:center} footer a{color:var(--acc)}
   @media(max-width:560px){ .row{flex-direction:column} button{width:100%} }
 </style>
 </head>
 <body>
 <div class="wrap">
-
-  <header>
-    <div class="pulse">◉</div>
-    <h1>SitePulse<small>Website health audit</small></h1>
-  </header>
-
-  <section class="hero">
-    <h2>Paste a URL.<br>Get the <em>truth</em> about that site.</h2>
-    <p>SitePulse crawls a website and checks 20+ things across security, SEO basics, accessibility structure, links, metadata, and conversion surface — then explains every finding in plain language.</p>
-  </section>
-
-  <section class="audit-box">
-    <div class="row">
-      <input id="url" type="text" inputmode="url" placeholder="https://example.com" autocomplete="off" spellcheck="false">
-      <button id="go">Run audit</button>
-    </div>
-    <div class="hint">Read-only — it fetches public pages, never posts or changes anything. Web audits cover up to 3 pages for speed; the CLI goes deeper.</div>
-  </section>
-
+  <header><div class="pulse">AA</div><h1>SitePulse<small>Website health audit</small></h1></header>
+  <section class="hero"><h2>Paste a URL.<br>Get the <em>truth</em> about that site.</h2><p>Read-only. Security, SEO basics, accessibility structure, links, metadata, and conversion — each finding stays evidence-backed.</p></section>
+  <section class="audit-box"><div class="row"><input id="url" type="text" inputmode="url" placeholder="https://example.com" autocomplete="off" spellcheck="false"><button id="go">Run audit</button></div><div class="hint">Fetches public pages only. Web audits cover up to 3 pages. The CLI goes deeper.</div></section>
   <section id="status"><div class="spin"></div><p id="statusMsg">Warming up…</p></section>
   <section id="err"></section>
   <section id="results"></section>
-
-  <footer>
-    Built on the <a href="https://github.com/knoxkiminou1-byte/sitepulse">SitePulse audit engine</a> · read-only by design
-  </footer>
+  <footer>Built on the <a href="https://github.com/knoxkiminou1-byte/sitepulse">SitePulse audit engine</a> · read-only by design</footer>
 </div>
-
 <script>
 const $ = id => document.getElementById(id);
 const msgs = ["Fetching the homepage…","Checking security headers…","Scanning SEO basics…","Testing internal links…","Scoring findings…"];
-let timer = null;
-
-function esc(s){ return String(s==null?"":s).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c])); }
+let timer = null, last = null;
+function esc(s){ return String(s==null?"":s).replace(/[&<>\"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[c])); }
 function host(u){ try{ return new URL(u).host; }catch(e){ return u; } }
-
 async function run(){
-  let url = $("url").value.trim();
-  if(!url){ $("url").focus(); return; }
-  if(!/^https?:\/\//i.test(url)) url = "https://" + url;
-
-  $("results").style.display = "none"; $("results").innerHTML = "";
-  $("err").style.display = "none";
-  $("status").style.display = "block";
-  $("go").disabled = true;
-  let mi = 0;
-  $("statusMsg").textContent = msgs[0];
-  timer = setInterval(()=>{ mi = (mi+1)%msgs.length; $("statusMsg").textContent = msgs[mi]; }, 2200);
-
-  const ctrl = new AbortController();
-  const killer = setTimeout(()=>ctrl.abort(), 55000);
+  let url = $("url").value.trim(); if(!url){ $("url").focus(); return; } if(!/^https?:\/\//i.test(url)) url = "https://" + url;
+  $("results").style.display="none"; $("results").innerHTML=""; $("err").style.display="none"; $("status").style.display="block"; $("go").disabled=true;
+  let mi=0; $("statusMsg").textContent=msgs[0]; timer=setInterval(()=>{ mi=(mi+1)%msgs.length; $("statusMsg").textContent=msgs[mi]; },2200);
+  const ctrl=new AbortController(); const killer=setTimeout(()=>ctrl.abort(),55000);
   try{
-    const r = await fetch("/api/audit", {
-      method:"POST", headers:{"Content-Type":"application/json"},
-      body: JSON.stringify({url}), signal: ctrl.signal
-    });
-    const data = await r.json().catch(()=>({}));
-    if(!r.ok) throw new Error(data.error || ("Server returned " + r.status));
-    render(data);
-  }catch(e){
-    const box = $("err");
-    box.style.display = "block";
-    box.innerHTML = "<b>Audit didn\u2019t complete.</b><br>" + esc(e.name==="AbortError"
-      ? "The site took too long to respond. Try a faster site, or run the CLI for a deep audit."
-      : e.message);
-  }finally{
-    clearTimeout(killer); clearInterval(timer);
-    $("status").style.display = "none";
-    $("go").disabled = false;
-  }
+    const r = await fetch("/api/audit",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({url}),signal:ctrl.signal});
+    const data = await r.json().catch(()=>({})); if(!r.ok) throw new Error(data.error||("Server returned "+r.status)); render(data);
+  }catch(e){ $("err").style.display="block"; $("err").innerHTML="<b>Audit didn\u2019t complete.</b><br>"+esc(e.name==="AbortError"?"The site took too long. Try a faster site, or run the CLI.":e.message); }
+  finally{ clearTimeout(killer); clearInterval(timer); $("status").style.display="none"; $("go").disabled=false; }
 }
-
-function ring(score){
-  const c = 2*Math.PI*52, off = c*(1-score/100);
-  const col = score>=90?"var(--grn)":score>=80?"var(--grn)":score>=65?"var(--amb)":score>=50?"var(--amb)":"var(--red)";
-  const grade = score>=90?"A":score>=80?"B":score>=65?"C":score>=50?"D":"F";
-  return `<div class="ring"><svg width="120" height="120"><circle cx="60" cy="60" r="52" fill="none" stroke="var(--line)" stroke-width="10"/><circle cx="60" cy="60" r="52" fill="none" stroke="${col}" stroke-width="10" stroke-linecap="round" stroke-dasharray="${c}" stroke-dashoffset="${off}"/></svg><div class="num"><b>${score}</b><span>Grade ${grade}</span></div></div>`;
-}
-
+function ring(score){ const c=2*Math.PI*52, off=c*(1-score/100); const col=score>=80?"var(--grn)":score>=65?"var(--amb)":"var(--red)"; const grade=score>=90?"A":score>=80?"B":score>=65?"C":score>=50?"D":"F"; return `<div class="ring"><svg width="120" height="120"><circle cx="60" cy="60" r="52" fill="none" stroke="var(--line)" stroke-width="10"/><circle cx="60" cy="60" r="52" fill="none" stroke="${col}" stroke-width="10" stroke-linecap="round" stroke-dasharray="${c}" stroke-dashoffset="${off}"/></svg><div class="num"><b>${score}</b><span>Grade ${grade}</span></div></div>`; }
 function render(d){
-  const order = {critical:0, warning:1, info:2};
-  const groups = {critical:[], warning:[], info:[]};
-  (d.findings||[]).forEach(f => (groups[f.severity]||groups.info).push(f));
-  const names = {critical:"Critical — fix first", warning:"Warnings", info:"Info"};
-
-  let html = `<div class="score-card">${ring(d.score)}
-    <div class="meta"><h3>${esc(host(d.audited_url))}</h3>
-    <div class="sub">Checked ${d.pages_crawled} page(s) · ${esc(d.elapsed_total)}s · ${esc((d.audited_at||"").slice(0,10))}</div>
-    <div class="chips">
-      <span class="chip c"><b>${d.counts.critical}</b> critical</span>
-      <span class="chip w"><b>${d.counts.warning}</b> warnings</span>
-      <span class="chip"><b>${d.counts.info}</b> info</span>
-    </div></div></div>`;
-
-  ["critical","warning","info"].forEach(sev => {
-    if(!groups[sev].length) return;
-    html += `<div class="group"><h4>${names[sev]} (${groups[sev].length})</h4>`;
-    groups[sev].forEach(f => {
-      html += `<details class="find"><summary><span class="badge b-${sev==="critical"?"crit":sev==="warning"?"warn":"info"}">${sev}</span><span><span class="t">${esc(f.title)}</span><span class="p" style="display:block">${esc(f.page)}</span></span></summary>
-      <div class="body"><dl>
-        <div><dt>Evidence</dt><dd>${esc(f.evidence)}</dd></div>
-        <div><dt>Why it matters</dt><dd>${esc(f.why_it_matters)}</dd></div>
-        <div><dt>Recommended fix</dt><dd>${esc(f.recommended_fix)}</dd></div>
-      </dl></div></details>`;
-    });
-    html += `</div>`;
-  });
-
-  if(d.notes && d.notes.length)
-    html += `<div class="notes"><b>Honest limitations</b><ul>${d.notes.map(n=>`<li>${esc(n)}</li>`).join("")}</ul></div>`;
-
-  const box = $("results");
-  box.innerHTML = html; box.style.display = "block";
-  box.scrollIntoView({behavior:"smooth", block:"start"});
+  last=d; const groups={critical:[],warning:[],info:[]}; (d.findings||[]).forEach(f => (groups[f.severity]||groups.info).push(f));
+  const names={critical:"Critical — fix first",warning:"Warnings",info:"Info"};
+  let html=`<div class="score-card">${ring(d.score)}<div class="meta"><h3>${esc(host(d.audited_url))}</h3><div class="sub">Checked ${d.pages_crawled} page(s) · ${esc(d.elapsed_total)}s · ${esc((d.audited_at||"").slice(0,10))}</div><div class="chips"><span class="chip"><b>${d.counts.critical}</b> critical</span><span class="chip"><b>${d.counts.warning}</b> warnings</span><span class="chip"><b>${d.counts.info}</b> info</span></div><div class="actions"><button class="ghost" id="copy">Copy report</button><button class="ghost" id="dl">Download Markdown</button></div></div></div>`;
+  ["critical","warning","info"].forEach(sev=>{ if(!groups[sev].length) return; html+=`<div class="group"><h4>${names[sev]} (${groups[sev].length})</h4>`; groups[sev].forEach(f=>{ html+=`<details class="find"><summary><span class="badge b-${sev==="critical"?"crit":sev==="warning"?"warn":"info"}">${sev}</span><span><span class="t">${esc(f.title)}</span><span class="p" style="display:block;color:var(--dim)">${esc(f.page)}</span></span></summary><div class="body"><dl><dt>Evidence</dt><dd>${esc(f.evidence)}</dd><dt>Why it matters</dt><dd>${esc(f.why_it_matters)}</dd><dt>Recommended fix</dt><dd>${esc(f.recommended_fix)}</dd></dl></div></details>`; }); html+=`</div>`; });
+  if(d.notes&&d.notes.length) html+=`<div class="notes"><b>Honest limitations</b><ul>${d.notes.map(n=>`<li>${esc(n)}</li>`).join("")}</ul></div>`;
+  const box=$("results"); box.innerHTML=html; box.style.display="block"; box.scrollIntoView({behavior:"smooth"});
+  $("copy").onclick=()=>navigator.clipboard.writeText(markdown(d));
+  $("dl").onclick=()=>{ const blob=new Blob([markdown(d)],{type:"text/markdown"}); const a=document.createElement("a"); a.href=URL.createObjectURL(blob); a.download="sitepulse-report.md"; a.click(); };
 }
-
-$("go").addEventListener("click", run);
-$("url").addEventListener("keydown", e => { if(e.key==="Enter") run(); });
+function markdown(d){ const lines=["# SitePulse report — "+host(d.audited_url),"","Score: "+d.score,"","Evidence only.",""]; (d.findings||[]).forEach(f=>{ lines.push("## "+f.title,"","- Evidence: "+f.evidence,"- Why it matters: "+f.why_it_matters,"- Fix: "+f.recommended_fix,""); }); return lines.join("\n"); }
+$("go").addEventListener("click", run); $("url").addEventListener("keydown", e => { if(e.key==="Enter") run(); });
 </script>
 </body>
 </html>
