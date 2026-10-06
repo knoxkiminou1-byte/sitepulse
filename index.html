@@ -4,7 +4,6 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>SitePulse — Website Health Audit</title>
-<meta name="description" content="Paste a URL. Get a plain-language health report for any website in seconds.">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@420;560&family=Montserrat:wght@600;700&display=swap" rel="stylesheet">
 <style>
   :root{ --bg:#07152D; --panel:#10213f; --panel2:#0c1b33; --line:#243656; --txt:#fff; --mut:#B6C1D2; --dim:#8ea0b8; --grn:#8fd6a4; --amb:#E4AC44; --red:#ff8d8d; --acc:#E4AC44; }
@@ -23,16 +22,16 @@
   .ring{position:relative; width:120px; height:120px} .ring svg{transform:rotate(-90deg)} .ring .num{position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center} .ring .num b{font-size:30px}
   .meta h3{font-size:20px; word-break:break-all} .meta .sub{color:var(--dim); font-size:13px; margin:4px 0 12px} .chips{display:flex; gap:8px; flex-wrap:wrap} .chip{font-size:13px; padding:6px 12px; border-radius:999px; border:1px solid var(--line); background:var(--panel2); color:var(--mut)} .chip b{color:var(--txt)}
   .actions{display:flex; gap:8px; margin-top:12px; flex-wrap:wrap} .group{margin-top:22px} .group>h4{font-size:13px; text-transform:uppercase; letter-spacing:.1em; color:var(--dim); margin-bottom:10px}
-  .find{background:var(--panel); border:1px solid var(--line); border-radius:14px; margin-bottom:10px; overflow:hidden} .find summary{list-style:none; cursor:pointer; padding:16px 18px; display:flex; gap:12px} .find summary::-webkit-details-marker{display:none}
+  .find{background:var(--panel); border:1px solid var(--line); border-radius:14px; margin-bottom:10px; overflow:hidden} .find summary{list-style:none; cursor:pointer; padding:16px 18px; display:flex; gap:12px}
   .badge{font-size:11px; font-weight:700; text-transform:uppercase; padding:4px 10px; border-radius:999px} .b-crit{background:#3a1820; color:#ffb4b4} .b-warn{background:#3a2d14; color:#f0d59a} .b-info{background:#142844; color:#b7d4ff}
   .find .body{padding:14px 18px 18px; border-top:1px solid var(--line)} .find .body dt{font-size:11px; text-transform:uppercase; color:var(--dim)} .find .body dd{margin-bottom:8px} .notes{margin-top:22px; border:1px dashed var(--line); border-radius:14px; padding:18px; color:var(--mut)} footer{padding:30px 0 46px; color:var(--dim); text-align:center} footer a{color:var(--acc)}
-  @media(max-width:560px){ .row{flex-direction:column} button{width:100%} }
+  #filter{margin-top:12px} @media(max-width:560px){ .row{flex-direction:column} button{width:100%} }
 </style>
 </head>
 <body>
 <div class="wrap">
   <header><div class="pulse">AA</div><h1>SitePulse<small>Website health audit</small></h1></header>
-  <section class="hero"><h2>Paste a URL.<br>Get the <em>truth</em> about that site.</h2><p>Read-only. Security, SEO basics, accessibility structure, links, metadata, and conversion — each finding stays evidence-backed.</p></section>
+  <section class="hero"><h2>Paste a URL.<br>Get the <em>truth</em> about that site.</h2><p>Read-only. Security, SEO basics, accessibility structure, links, metadata, and conversion. Each finding stays evidence-backed.</p></section>
   <section class="audit-box"><div class="row"><input id="url" type="text" inputmode="url" placeholder="https://example.com" autocomplete="off" spellcheck="false"><button id="go">Run audit</button></div><div class="hint">Fetches public pages only. Web audits cover up to 3 pages. The CLI goes deeper.</div></section>
   <section id="status"><div class="spin"></div><p id="statusMsg">Warming up…</p></section>
   <section id="err"></section>
@@ -58,23 +57,32 @@ async function run(){
 }
 function ring(score){ const c=2*Math.PI*52, off=c*(1-score/100); const col=score>=80?"var(--grn)":score>=65?"var(--amb)":"var(--red)"; const grade=score>=90?"A":score>=80?"B":score>=65?"C":score>=50?"D":"F"; return `<div class="ring"><svg width="120" height="120"><circle cx="60" cy="60" r="52" fill="none" stroke="var(--line)" stroke-width="10"/><circle cx="60" cy="60" r="52" fill="none" stroke="${col}" stroke-width="10" stroke-linecap="round" stroke-dasharray="${c}" stroke-dashoffset="${off}"/></svg><div class="num"><b>${score}</b><span>Grade ${grade}</span></div></div>`; }
 function csvCell(value){ const text = String(value==null?"":value).replace(/"/g,'""'); return '"'+text+'"'; }
+function shown(d){
+  const q = ($("filter")?.value || "").toLowerCase();
+  return (d.findings||[]).filter(f => String(f.evidence||"").trim() && (!q || `${f.title} ${f.evidence} ${f.page}`.toLowerCase().includes(q)));
+}
 function findingsCsv(d){
-  const rows = (d.findings||[]).filter(f => String(f.evidence||"").trim());
   const head = ["page","check","severity","title","evidence","why_it_matters","recommended_fix"];
-  return [head.join(","), ...rows.map(f => head.map(k => csvCell(f[k])).join(","))].join("\n")+"\n";
+  return [head.join(","), ...shown(d).map(f => head.map(k => csvCell(f[k])).join(","))].join("\n")+"\n";
+}
+function drawFindings(){
+  if(!last) return;
+  const groups={critical:[],warning:[],info:[]}; shown(last).forEach(f => (groups[f.severity]||groups.info).push(f));
+  const names={critical:"Critical — fix first",warning:"Warnings",info:"Info"};
+  let html="";
+  ["critical","warning","info"].forEach(sev=>{ if(!groups[sev].length) return; html+=`<div class="group"><h4>${names[sev]} (${groups[sev].length})</h4>`; groups[sev].forEach(f=>{ html+=`<details class="find"><summary><span class="badge b-${sev==="critical"?"crit":sev==="warning"?"warn":"info"}">${sev}</span><span><span class="t">${esc(f.title)}</span><span class="p" style="display:block;color:var(--dim)">${esc(f.page)}</span></span></summary><div class="body"><dl><dt>Evidence</dt><dd>${esc(f.evidence)}</dd><dt>Why it matters</dt><dd>${esc(f.why_it_matters)}</dd><dt>Recommended fix</dt><dd>${esc(f.recommended_fix)}</dd></dl></div></details>`; }); html+=`</div>`; });
+  $("groups").innerHTML = html || "<p class=\"hint\">No evidenced findings match that search.</p>";
 }
 function render(d){
-  last=d; const groups={critical:[],warning:[],info:[]}; (d.findings||[]).forEach(f => (groups[f.severity]||groups.info).push(f));
-  const names={critical:"Critical — fix first",warning:"Warnings",info:"Info"};
-  let html=`<div class="score-card">${ring(d.score)}<div class="meta"><h3>${esc(host(d.audited_url))}</h3><div class="sub">Checked ${d.pages_crawled} page(s) · ${esc(d.elapsed_total)}s · ${esc((d.audited_at||"").slice(0,10))}</div><div class="chips"><span class="chip"><b>${d.counts.critical}</b> critical</span><span class="chip"><b>${d.counts.warning}</b> warnings</span><span class="chip"><b>${d.counts.info}</b> info</span></div><div class="actions"><button class="ghost" id="copy">Copy report</button><button class="ghost" id="dl">Download Markdown</button><button class="ghost" id="csv">Download CSV</button></div></div></div>`;
-  ["critical","warning","info"].forEach(sev=>{ if(!groups[sev].length) return; html+=`<div class="group"><h4>${names[sev]} (${groups[sev].length})</h4>`; groups[sev].forEach(f=>{ html+=`<details class="find"><summary><span class="badge b-${sev==="critical"?"crit":sev==="warning"?"warn":"info"}">${sev}</span><span><span class="t">${esc(f.title)}</span><span class="p" style="display:block;color:var(--dim)">${esc(f.page)}</span></span></summary><div class="body"><dl><dt>Evidence</dt><dd>${esc(f.evidence)}</dd><dt>Why it matters</dt><dd>${esc(f.why_it_matters)}</dd><dt>Recommended fix</dt><dd>${esc(f.recommended_fix)}</dd></dl></div></details>`; }); html+=`</div>`; });
-  if(d.notes&&d.notes.length) html+=`<div class="notes"><b>Honest limitations</b><ul>${d.notes.map(n=>`<li>${esc(n)}</li>`).join("")}</ul></div>`;
-  const box=$("results"); box.innerHTML=html; box.style.display="block"; box.scrollIntoView({behavior:"smooth"});
+  last=d;
+  const html=`<div class="score-card">${ring(d.score)}<div class="meta"><h3>${esc(host(d.audited_url))}</h3><div class="sub">Checked ${d.pages_crawled} page(s) · ${esc(d.elapsed_total)}s · ${esc((d.audited_at||"").slice(0,10))}</div><div class="chips"><span class="chip"><b>${d.counts.critical}</b> critical</span><span class="chip"><b>${d.counts.warning}</b> warnings</span><span class="chip"><b>${d.counts.info}</b> info</span></div><div class="actions"><button class="ghost" id="copy">Copy report</button><button class="ghost" id="dl">Download Markdown</button><button class="ghost" id="csv">Download CSV</button></div><input id="filter" type="text" placeholder="Search findings"></div></div><div id="groups"></div>`;
+  const box=$("results"); box.innerHTML=html; box.style.display="block"; drawFindings();
+  $("filter").oninput=drawFindings;
   $("copy").onclick=()=>navigator.clipboard.writeText(markdown(d));
   $("dl").onclick=()=>{ const blob=new Blob([markdown(d)],{type:"text/markdown"}); const a=document.createElement("a"); a.href=URL.createObjectURL(blob); a.download="sitepulse-report.md"; a.click(); };
   $("csv").onclick=()=>{ const blob=new Blob([findingsCsv(d)],{type:"text/csv"}); const a=document.createElement("a"); a.href=URL.createObjectURL(blob); a.download="sitepulse-findings.csv"; a.click(); };
 }
-function markdown(d){ const lines=["# SitePulse report — "+host(d.audited_url),"","Score: "+d.score,"","Evidence only.",""]; (d.findings||[]).forEach(f=>{ if(!String(f.evidence||"").trim()) return; lines.push("## "+f.title,"","- Evidence: "+f.evidence,"- Why it matters: "+f.why_it_matters,"- Fix: "+f.recommended_fix,""); }); return lines.join("\n"); }
+function markdown(d){ const lines=["# SitePulse report — "+host(d.audited_url),"","Score: "+d.score,"","Evidence only.",""]; shown(d).forEach(f=>{ lines.push("## "+f.title,"","- Evidence: "+f.evidence,"- Why it matters: "+f.why_it_matters,"- Fix: "+f.recommended_fix,""); }); return lines.join("\n"); }
 $("go").addEventListener("click", run); $("url").addEventListener("keydown", e => { if(e.key==="Enter") run(); });
 </script>
 </body>
