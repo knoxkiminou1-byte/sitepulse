@@ -57,17 +57,24 @@ async function run(){
   finally{ clearTimeout(killer); clearInterval(timer); $("status").style.display="none"; $("go").disabled=false; }
 }
 function ring(score){ const c=2*Math.PI*52, off=c*(1-score/100); const col=score>=80?"var(--grn)":score>=65?"var(--amb)":"var(--red)"; const grade=score>=90?"A":score>=80?"B":score>=65?"C":score>=50?"D":"F"; return `<div class="ring"><svg width="120" height="120"><circle cx="60" cy="60" r="52" fill="none" stroke="var(--line)" stroke-width="10"/><circle cx="60" cy="60" r="52" fill="none" stroke="${col}" stroke-width="10" stroke-linecap="round" stroke-dasharray="${c}" stroke-dashoffset="${off}"/></svg><div class="num"><b>${score}</b><span>Grade ${grade}</span></div></div>`; }
+function csvCell(value){ const text = String(value==null?"":value).replace(/"/g,'""'); return '"'+text+'"'; }
+function findingsCsv(d){
+  const rows = (d.findings||[]).filter(f => String(f.evidence||"").trim());
+  const head = ["page","check","severity","title","evidence","why_it_matters","recommended_fix"];
+  return [head.join(","), ...rows.map(f => head.map(k => csvCell(f[k])).join(","))].join("\n")+"\n";
+}
 function render(d){
   last=d; const groups={critical:[],warning:[],info:[]}; (d.findings||[]).forEach(f => (groups[f.severity]||groups.info).push(f));
   const names={critical:"Critical — fix first",warning:"Warnings",info:"Info"};
-  let html=`<div class="score-card">${ring(d.score)}<div class="meta"><h3>${esc(host(d.audited_url))}</h3><div class="sub">Checked ${d.pages_crawled} page(s) · ${esc(d.elapsed_total)}s · ${esc((d.audited_at||"").slice(0,10))}</div><div class="chips"><span class="chip"><b>${d.counts.critical}</b> critical</span><span class="chip"><b>${d.counts.warning}</b> warnings</span><span class="chip"><b>${d.counts.info}</b> info</span></div><div class="actions"><button class="ghost" id="copy">Copy report</button><button class="ghost" id="dl">Download Markdown</button></div></div></div>`;
+  let html=`<div class="score-card">${ring(d.score)}<div class="meta"><h3>${esc(host(d.audited_url))}</h3><div class="sub">Checked ${d.pages_crawled} page(s) · ${esc(d.elapsed_total)}s · ${esc((d.audited_at||"").slice(0,10))}</div><div class="chips"><span class="chip"><b>${d.counts.critical}</b> critical</span><span class="chip"><b>${d.counts.warning}</b> warnings</span><span class="chip"><b>${d.counts.info}</b> info</span></div><div class="actions"><button class="ghost" id="copy">Copy report</button><button class="ghost" id="dl">Download Markdown</button><button class="ghost" id="csv">Download CSV</button></div></div></div>`;
   ["critical","warning","info"].forEach(sev=>{ if(!groups[sev].length) return; html+=`<div class="group"><h4>${names[sev]} (${groups[sev].length})</h4>`; groups[sev].forEach(f=>{ html+=`<details class="find"><summary><span class="badge b-${sev==="critical"?"crit":sev==="warning"?"warn":"info"}">${sev}</span><span><span class="t">${esc(f.title)}</span><span class="p" style="display:block;color:var(--dim)">${esc(f.page)}</span></span></summary><div class="body"><dl><dt>Evidence</dt><dd>${esc(f.evidence)}</dd><dt>Why it matters</dt><dd>${esc(f.why_it_matters)}</dd><dt>Recommended fix</dt><dd>${esc(f.recommended_fix)}</dd></dl></div></details>`; }); html+=`</div>`; });
   if(d.notes&&d.notes.length) html+=`<div class="notes"><b>Honest limitations</b><ul>${d.notes.map(n=>`<li>${esc(n)}</li>`).join("")}</ul></div>`;
   const box=$("results"); box.innerHTML=html; box.style.display="block"; box.scrollIntoView({behavior:"smooth"});
   $("copy").onclick=()=>navigator.clipboard.writeText(markdown(d));
   $("dl").onclick=()=>{ const blob=new Blob([markdown(d)],{type:"text/markdown"}); const a=document.createElement("a"); a.href=URL.createObjectURL(blob); a.download="sitepulse-report.md"; a.click(); };
+  $("csv").onclick=()=>{ const blob=new Blob([findingsCsv(d)],{type:"text/csv"}); const a=document.createElement("a"); a.href=URL.createObjectURL(blob); a.download="sitepulse-findings.csv"; a.click(); };
 }
-function markdown(d){ const lines=["# SitePulse report — "+host(d.audited_url),"","Score: "+d.score,"","Evidence only.",""]; (d.findings||[]).forEach(f=>{ lines.push("## "+f.title,"","- Evidence: "+f.evidence,"- Why it matters: "+f.why_it_matters,"- Fix: "+f.recommended_fix,""); }); return lines.join("\n"); }
+function markdown(d){ const lines=["# SitePulse report — "+host(d.audited_url),"","Score: "+d.score,"","Evidence only.",""]; (d.findings||[]).forEach(f=>{ if(!String(f.evidence||"").trim()) return; lines.push("## "+f.title,"","- Evidence: "+f.evidence,"- Why it matters: "+f.why_it_matters,"- Fix: "+f.recommended_fix,""); }); return lines.join("\n"); }
 $("go").addEventListener("click", run); $("url").addEventListener("keydown", e => { if(e.key==="Enter") run(); });
 </script>
 </body>
