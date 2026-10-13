@@ -24,6 +24,7 @@ from html.parser import HTMLParser
 from urllib.parse import urljoin, urlparse, urldefrag
 
 import requests
+from safe_http import guarded_request
 
 UA = {"User-Agent": "Kiminou-Audit-Engine/1.0 (leverage-lab; read-only audit)"}
 TIMEOUT = 12
@@ -144,8 +145,7 @@ def fetch(url, method="GET", timeout=TIMEOUT):
     """Fetch a URL. Returns dict with status, final_url, headers, text, elapsed, error."""
     started = time.time()
     try:
-        r = requests.request(method, url, headers=UA, timeout=timeout,
-                             allow_redirects=True)
+        r = guarded_request(method, url, headers=UA, timeout=timeout)
         elapsed = time.time() - started
         text = r.text if method == "GET" else ""
         return {
