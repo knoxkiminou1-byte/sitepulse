@@ -8,6 +8,7 @@ from urllib.parse import urlparse
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 from audit import audit_site  # noqa: E402
+from safe_http import is_public_url  # noqa: E402
 
 WEB_MAX_PAGES = 3
 WEB_TIMEOUT = 6
@@ -50,13 +51,17 @@ class handler(BaseHTTPRequestHandler):
             _json(self, 400, {"error": "Invalid JSON body."})
             return
 
-        url = (body.get("url") or "").strip()
+        if not isinstance(body, dict) or not isinstance(body.get("url"), str):
+            _json(self, 400, {"error": "Provide a URL string."})
+            return
+        url = body["url"].strip()
         if not url or len(url) > MAX_URL_LEN:
             _json(self, 400, {"error": "Provide a URL, e.g. {\"url\": \"https://example.com\"}"})
             return
-        parsed = urlparse(url if urlparse(url).scheme else "https://" + url)
-        if parsed.scheme not in ("http", "https") or not parsed.netloc:
-            _json(self, 400, {"error": "URL must be http(s), e.g. https://example.com"})
+        normalized_url = url if urlparse(url).scheme else "https://" + url
+        parsed = urlparse(normalized_url)
+        if parsed.scheme not in ("http", "https") or not parsed.netloc or not is_public_url(normalized_url):
+            _json(self, 400, {"error": "URL must be a publicly reachable http(s) address."})
             return
 
         started = time.time()
