@@ -13,6 +13,7 @@ jobs:
         with:
           python-version: "3.12"
       - run: pip install -r requirements.txt
-      - run: python3 -m py_compile audit.py
+      - run: python3 -m py_compile audit.py safe_http.py api/audit.py
+      - run: python3 -m unittest discover -s tests -p 'test_*.py' -v
       - run: python3 audit.py https://example.com --pages 2 --out /tmp/ci-out
       - run: test -f /tmp/ci-out/*/report.json && test -f /tmp/ci-out/*/CLIENT-REPORT.md && test -f /tmp/ci-out/*/TECHNICAL-REPORT.md
